@@ -1,4 +1,4 @@
-Video: [![Video of the analog clock in action](Media/anaclock.png)](Media/anaclock.mov "Video")
+Video: [![Video of the analog clock in action](Media/AnaClock.png)](Media/AnaClock.mov "Video of the analog clock in action")
 
 
 Compile and run:
