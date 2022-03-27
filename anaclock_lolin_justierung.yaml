@@ -1,0 +1,70 @@
+substitutions:
+  devicename: anaclockjust
+  upper_devicename: AnaClock
+  ip: 192.168.102.120
+
+esphome:
+  name: ${devicename}
+  platform: ESP8266
+  board: nodemcuv2
+
+wifi:
+  ssid: "TuxUntrust"
+  password: "lechery-crawl-magnify"
+  fast_connect: true
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${upper_devicename} Fallback Hotspot"
+    password: "geheimgeheim"
+
+  manual_ip:
+    static_ip: $ip
+    gateway: 192.168.102.1
+    subnet: 255.255.255.0
+    dns1: 192.168.102.1
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+#api:
+
+ota:
+
+output:
+  - platform: esp8266_pwm
+    pin: D1
+    frequency: 1000 Hz
+    id: pwm_hour
+  - platform: esp8266_pwm
+    pin: D2
+    frequency: 1000 Hz
+    id: pwm_minute
+  - platform: esp8266_pwm
+    pin: D5
+    frequency: 1000 Hz
+    id: pwm_second
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: Europe/Berlin
+    on_time_sync:
+      then:
+        - logger.log: "Synchronized system clock"
+    on_time:
+      # Every Second
+      - seconds: "*"
+        minutes: "*"
+        hours: "*"
+        then:
+          - logger.log:
+              format: "Time: %d %d %d"
+              args: [ 'id(sntp_time).now().hour', 'id(sntp_time).now().minute', 'id(sntp_time).now().second' ]
+          - lambda: !lambda |-
+              auto time = id(sntp_time).now();
+              id(pwm_hour).set_level(float(time.second / 3  % 12) / 12.0 * 0.95); 
+              id(pwm_minute).set_level(float(time.second) / 60.0 * 0.84); 
+              id(pwm_second).set_level(float(time.second) / 60.0 * 0.84); 
+
