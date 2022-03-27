@@ -9,14 +9,14 @@ esphome:
   board: nodemcuv2
 
 wifi:
-  ssid: "TuxUntrust"
-  password: "lechery-crawl-magnify"
+  ssid: !secret wifi_ssid
+  password: !secret !wifi_password
   fast_connect: true
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "${upper_devicename} Fallback Hotspot"
-    password: "geheimgeheim"
+    password: !secret ap_password
 
   manual_ip:
     static_ip: $ip
