@@ -3,10 +3,38 @@ substitutions:
   upper_devicename: AnaClock
   ip: 192.168.102.120
 
+globals:
+  - id: init_done
+    type: int
+    restore_value: no
+    initial_value: '0'
+
 esphome:
   name: ${devicename}
   platform: ESP8266
   board: nodemcuv2
+  on_boot:
+    priority: -100
+    then:
+      - lambda: !lambda |-
+          if (!id(init_done)) {
+            for (int i=0; i < 100; i++) {
+              ESP_LOGD("main", "bootanimation up %d", i);
+              id(pwm_hour).set_level(float(i) / 100.0 * 0.86);
+              id(pwm_minute).set_level(float(i) / 100.0 * 0.84);
+              id(pwm_second).set_level(float(i) / 100.0 * 0.84);
+              delay(25);
+            }
+            for (int i=100; i >=0 ; i--) {
+              ESP_LOGD("main", "bootanimation down %d", i);
+              id(pwm_hour).set_level(float(i) / 100.0 * 0.86);
+              id(pwm_minute).set_level(float(i) / 100.0 * 0.84);
+              id(pwm_second).set_level(float(i) / 100.0 * 0.84);
+              delay(25);
+            }
+          }
+          id(init_done)=1;
+
 
 wifi:
   ssid: !secret wifi_ssid
@@ -32,6 +60,9 @@ logger:
 
 ota:
 
+#
+# Application stuff
+#
 output:
   - platform: esp8266_pwm
     pin: D1
@@ -46,35 +77,11 @@ output:
     frequency: 1000 Hz
     id: pwm_second
 
-globals:
-        - id: init_done
-          type: int
-          restore_value: no
-          initial_value: '0'
 
 time:
   - platform: sntp
     id: sntp_time
     timezone: Europe/Berlin
-    on_time_sync:
-      then:
-        - logger.log: "Synchronized system clock"
-        - repeat:
-                count: 12
-                then: 
-                  - lambda: !lambda |-
-                        if (!init_done) {
-                                static int counter=0;
-                                id(pwm_hour).set_level(float(counter) / 12.0 * 0.84);
-                                id(pwm_minute).set_level(float(counter * 5) / 60.0 * 0.84);
-                                id(pwm_second).set_level(float(counter * 5) / 60.0 * 0.84);
-                                counter++;
-                                if (counter > 12) { counter = 0; };
-                        }
-                  - delay: 0.5s
-        - lambda: !lambda |-
-                id(init_done)=1;
-
     on_time:
       # Every second
       - seconds: "*"
@@ -90,8 +97,7 @@ time:
                 int hour=time.hour % 12;
                 if (hour == 0) { hour = 12; }
                 hour--;
-                id(pwm_hour).set_level(float(hour) / 12.0 * 0.84); 
-                id(pwm_minute).set_level(float(time.minute) / 60.0 * 0.84); 
-                id(pwm_second).set_level(float(time.second) / 60.0 * 0.84); 
+                id(pwm_hour).set_level(float(hour) / 12.0 * 0.86);
+                id(pwm_minute).set_level(float(time.minute) / 60.0 * 0.84);
+                id(pwm_second).set_level(float(time.second) / 60.0 * 0.84);
               }
-
