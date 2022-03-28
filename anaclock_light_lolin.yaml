@@ -1,0 +1,171 @@
+substitutions:
+  devicename: anaclock
+  upper_devicename: AnaClock
+  ip: 192.168.102.120
+
+globals:
+  - id: init_done
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+esphome:
+  name: ${devicename}
+  platform: ESP8266
+  board: nodemcuv2
+  on_boot:
+    priority: -100
+    then:
+      # init
+      - light.turn_on:
+          id: light_hour
+          brightness: 0%
+          transition_length: 0.1s
+      - light.turn_on:
+          id: light_minute
+          brightness: 0%
+          transition_length: 0.1s
+      - light.turn_on:
+          id: light_second
+          brightness: 0%
+          transition_length: 0.1s
+      - delay: 0.2s
+
+      # Up
+      - light.turn_on:
+          id: light_hour
+          brightness: 84%
+          transition_length: 2s
+      - delay: 1s
+      - light.turn_on:
+          id: light_minute
+          brightness: 84%
+          transition_length: 2s
+      - delay: 1s
+      - light.turn_on:
+          id: light_second
+          brightness: 84%
+          transition_length: 2s
+      - delay: 3s
+
+      # Down
+      - light.turn_on:
+          id: light_second
+          brightness: 0%
+          transition_length: 2s
+      - light.turn_on:
+          id: light_minute
+          brightness: 0%
+          transition_length: 2s
+      - light.turn_on:
+          id: light_hour
+          brightness: 0%
+          transition_length: 2s
+      - delay: 2s
+
+      - lambda: !lambda |-
+          id(init_done)=1;
+
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  fast_connect: true
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "${upper_devicename} Fallback Hotspot"
+    password: !secret ap_password
+
+  manual_ip:
+    static_ip: $ip
+    gateway: 192.168.102.1
+    subnet: 255.255.255.0
+    dns1: 192.168.102.1
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+#api:
+
+ota:
+
+#
+# Application stuff
+#
+output:
+  - platform: esp8266_pwm
+    pin: D1
+    frequency: 1000 Hz
+    id: pwm_hour
+  - platform: esp8266_pwm
+    pin: D2
+    frequency: 1000 Hz
+    id: pwm_minute
+  - platform: esp8266_pwm
+    pin: D5
+    frequency: 1000 Hz
+    id: pwm_second
+
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: Europe/Berlin
+    on_time:
+      # Every second
+      - seconds: "*"
+        minutes: "*"
+        hours: "*"
+        then:
+          - logger.log:
+              format: "Time: %02d:%02d:%02d"
+              args: [ 'id(sntp_time).now().hour', 'id(sntp_time).now().minute', 'id(sntp_time).now().second' ]
+          - lambda: !lambda |-
+              if (id(init_done)) {
+                auto time = id(sntp_time).now();
+
+                // hour calculation (1 to 12, not 0 to 11)
+                int hour=time.hour % 12;
+                if (hour == 0) { hour = 12; }
+                hour--;
+
+                // Nur aktualisieren, wenn sich was aendert
+                float old_hour = id(light_hour).remote_values.get_brightness();
+                float new_hour = float(hour) / 12.0 * 0.86;
+                if (int(old_hour * 100) != int(new_hour * 100)) {
+                  auto call_hour = id(light_hour).turn_on();
+                  call_hour.set_brightness(new_hour);
+                  call_hour.perform();
+                }
+
+                // Nur aktualisieren, wenn sich was aendert
+                float old_minute = id(light_minute).remote_values.get_brightness();
+                float new_minute = float(time.minute) / 60.0 * 0.84;
+                if (int(old_minute * 100) != int(new_minute * 100)) {
+                  auto call_minute = id(light_minute).turn_on();
+                  call_minute.set_brightness(new_minute);
+                  call_minute.perform();
+                }
+
+                // hier aendert sich immer was...
+                auto call_second = id(light_second).turn_on();
+                call_second.set_brightness(float(time.second) / 60.0 * 0.84);
+                call_second.perform();
+              }
+
+
+light:
+  - platform: monochromatic
+    output: pwm_hour
+    id: light_hour
+    gamma_correct: 1
+  - platform: monochromatic
+    output: pwm_minute
+    id: light_minute
+    gamma_correct: 1
+  - platform: monochromatic
+    output: pwm_second
+    id: light_second
+    gamma_correct: 1
