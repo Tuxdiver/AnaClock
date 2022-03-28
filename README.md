@@ -1,5 +1,6 @@
 Video: [![Video of the analog clock in action](Media/AnaClock.png)](Media/AnaClock.mov "Video of the analog clock in action")
 
+Und ja: die "11" fehlt...
 
 Compile and run:
 
